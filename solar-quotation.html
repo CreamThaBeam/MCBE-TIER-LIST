@@ -1,0 +1,1533 @@
+<title>Solar Quotation Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  /* Layout: two-pane workbench (spec-sheet form left, sticky equipment nameplate right); the quotation renders as a light paper sheet on the desk in both themes */
+  --desk:#e8ecf1;
+  --panel:#ffffff;
+  --panel-2:#f3f5f8;
+  --ink:#111a27;
+  --ink-2:#455163;
+  --ink-3:#667285;
+  --line:#d5dbe3;
+  --line-2:#aeb8c5;
+  --cell:#1b3a6b;
+  --cell-2:#26508f;
+  --on-cell:#ffffff;
+  --sun:#eaa521;
+  --sun-2:#f3b84a;
+  --on-sun:#1b1302;
+  --sun-ink:#8a5600;
+  --sun-wash:#fcf1da;
+  --ok:#1b7446; --ok-wash:#e2f2e8;
+  --warn:#8f5400; --warn-wash:#fcefd6;
+  --bad:#b42318; --bad-wash:#fde6e3;
+  --mix-solar:#cf8f10; --mix-batt:#2b62b0; --mix-grid:#b8503c;
+  --focus:#2f6fd6;
+  --shadow:0 1px 2px rgb(17 26 39 / .06), 0 10px 30px rgb(17 26 39 / .09);
+  /* Paper tokens are the same in both themes: the quotation is a document */
+  --paper:#ffffff; --paper-ink:#141b27; --paper-ink-2:#4a5466; --paper-ink-3:#6c7686;
+  --paper-line:#dde2e8; --paper-tint:#f2f4f7; --paper-brand:#1b3a6b; --paper-sun:#eaa521;
+  --paper-sun-wash:#fdf3dd; --paper-pos:#2b62b0; --paper-neg:#c96f4a;
+  --f-display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desk:#0c1219; --panel:#151d28; --panel-2:#1b2532; --ink:#e6ebf1; --ink-2:#a6b1bf; --ink-3:#8490a1;
+    --line:#273241; --line-2:#3c4859; --cell:#86aee9; --cell-2:#a2c1f0; --on-cell:#0a1322;
+    --sun:#f0b23a; --sun-2:#f5c25e; --on-sun:#1b1302; --sun-ink:#f3c369; --sun-wash:#2a2213;
+    --ok:#62c792; --ok-wash:#11261b; --warn:#f0b04a; --warn-wash:#2a2012; --bad:#f28b82; --bad-wash:#2e1716;
+    --mix-solar:#b8811a; --mix-batt:#5786d0; --mix-grid:#c96652; --focus:#8db4f0;
+    --shadow:0 1px 2px rgb(0 0 0 / .4), 0 12px 32px rgb(0 0 0 / .35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#0c1219; --panel:#151d28; --panel-2:#1b2532; --ink:#e6ebf1; --ink-2:#a6b1bf; --ink-3:#8490a1;
+  --line:#273241; --line-2:#3c4859; --cell:#86aee9; --cell-2:#a2c1f0; --on-cell:#0a1322;
+  --sun:#f0b23a; --sun-2:#f5c25e; --on-sun:#1b1302; --sun-ink:#f3c369; --sun-wash:#2a2213;
+  --ok:#62c792; --ok-wash:#11261b; --warn:#f0b04a; --warn-wash:#2a2012; --bad:#f28b82; --bad-wash:#2e1716;
+  --mix-solar:#b8811a; --mix-batt:#5786d0; --mix-grid:#c96652; --focus:#8db4f0;
+  --shadow:0 1px 2px rgb(0 0 0 / .4), 0 12px 32px rgb(0 0 0 / .35);
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--desk);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h1,h2,h3,h4{text-wrap:balance;margin:0}
+p{margin:0}
+button{font:inherit;cursor:pointer}
+a{color:inherit}
+.wrap{max-width:1240px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--f-mono)}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--panel);border-bottom:1px solid var(--line)}
+.topbar-in{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:58px;flex-wrap:wrap;padding-block:8px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:16px;letter-spacing:.01em}
+.brand svg{flex:none}
+.steps{display:flex;gap:4px}
+.step{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink-3);font-size:14px;font-weight:600;padding:7px 12px;border-radius:999px}
+.step span{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;font-size:12px;font-family:var(--f-mono)}
+.step[aria-current="step"]{color:var(--ink);background:var(--panel-2)}
+.step[aria-current="step"] span{background:var(--cell);border-color:var(--cell);color:var(--on-cell)}
+.step:hover{color:var(--ink)}
+
+/* ---------- workbench ---------- */
+.workbench{display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:32px;align-items:start;padding-block:28px 64px}
+.formcol{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.intro{padding:28px clamp(18px,3vw,32px) 24px;display:flex;flex-wrap:wrap;gap:18px 24px;align-items:flex-end;justify-content:space-between}
+.intro h1{font-family:var(--f-display);font-stretch:118%;font-weight:750;font-size:clamp(24px,3.2vw,32px);line-height:1.1;letter-spacing:-.005em}
+.intro p{color:var(--ink-2);margin-top:8px;max-width:58ch}
+.intro .loaded{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:var(--sun-ink);background:var(--sun-wash);padding:4px 10px;border-radius:999px;font-weight:600}
+.intro-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.sec{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px 28px;padding:26px clamp(18px,3vw,32px);border:0;border-top:1px solid var(--line);margin:0;min-width:0}
+.sec-head h2{font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:17px;line-height:1.25}
+.sec-head p{color:var(--ink-3);font-size:13px;margin-top:6px}
+.sec-head .count{display:inline-block;margin-top:10px;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px;align-content:start;min-width:0}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}
+.span2{grid-column:1/-1}
+.subhead{grid-column:1/-1;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:6px;border-top:1px dashed var(--line);margin-top:4px}
+.subhead:first-child{border-top:0;padding-top:0;margin-top:0}
+
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>label,.field>.lbl{font-size:13.5px;font-weight:600;color:var(--ink);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.req,.opt{font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;font-style:normal;padding:1px 6px;border-radius:3px}
+.req{color:var(--sun-ink);background:var(--sun-wash)}
+.opt{color:var(--ink-3);border:1px solid var(--line)}
+.hint{font-size:12.5px;color:var(--ink-3);line-height:1.4}
+.err{font-size:12.5px;color:var(--bad);font-weight:600}
+input[type=text],input[type=number],input[type=email],input[type=tel],input[type=date],input[type=url],select,textarea{
+  width:100%;min-width:0;font:inherit;font-size:15px;color:var(--ink);background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r);padding:9px 11px;min-height:42px}
+textarea{min-height:84px;resize:vertical;line-height:1.45}
+input[type=number]{font-variant-numeric:tabular-nums}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--focus);outline-offset:0;border-color:var(--focus)}
+input[aria-invalid="true"]{border-color:var(--bad);background:var(--bad-wash)}
+.unit{display:flex;align-items:stretch;min-width:0}
+.unit input{border-top-right-radius:0;border-bottom-right-radius:0;flex:1}
+.unit>span{display:flex;align-items:center;padding:0 10px;border:1px solid var(--line-2);border-left:0;border-radius:0 var(--r) var(--r) 0;background:var(--panel-2);color:var(--ink-2);font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+.unit.pre input{border-radius:0 var(--r) var(--r) 0}
+.unit.pre>span{border-left:1px solid var(--line-2);border-right:0;border-radius:var(--r) 0 0 var(--r)}
+
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;width:fit-content;max-width:100%}
+.seg label{position:relative;display:flex;flex:1 1 auto}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:block;padding:9px 14px;font-size:14px;font-weight:600;color:var(--ink-2);background:var(--panel);white-space:nowrap;text-align:center;flex:1;border-right:1px solid var(--line)}
+.seg label:last-child span{border-right:0}
+.seg input:checked+span{background:var(--cell);color:var(--on-cell)}
+.seg input:focus-visible+span{outline:2px solid var(--focus);outline-offset:-3px}
+
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:600;cursor:pointer}
+.check input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--cell);flex:none}
+.check small{display:block;font-weight:400;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+
+.range{display:flex;align-items:center;gap:12px}
+.range input{flex:1;accent-color:var(--cell);min-width:0}
+.range output{font-family:var(--f-mono);font-size:13px;color:var(--ink);min-width:9ch;text-align:right;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line-2);background:var(--panel);color:var(--ink-2);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--sun-wash);border-color:var(--sun);color:var(--sun-ink)}
+.chip small{font-weight:400;color:var(--ink-3)}
+
+details.more{grid-column:1/-1;border:1px solid var(--line);border-radius:var(--r);background:var(--panel-2)}
+details.more>summary{cursor:pointer;padding:11px 14px;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:10px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(-45deg);transition:transform .15s}
+details.more[open]>summary::before{transform:rotate(45deg)}
+details.more>summary small{font-weight:400;color:var(--ink-3)}
+details.more>.grid{padding:4px 14px 16px}
+.sumline{font-size:13.5px;color:var(--ink-2)}
+.sumline b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);border-radius:var(--r);padding:9px 14px;font-size:14px;font-weight:600;text-decoration:none}
+.btn:hover{border-color:var(--ink-3)}
+.cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:0;border-radius:var(--r);background:var(--sun);color:var(--on-sun);font-weight:700;font-size:15.5px;padding:13px 18px}
+.cta:hover{background:var(--sun-2)}
+.cta svg{flex:none}
+
+/* ---------- nameplate ---------- */
+.plate{position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);max-height:calc(100dvh - 92px - env(safe-area-inset-top,0px));overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.plate-head{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--cell);color:var(--on-cell);padding:10px 16px}
+.plate-head .mono{font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.plate-head .pill{font-size:12px;font-weight:700;border:1px solid currentColor;border-radius:999px;padding:1px 9px}
+.plate-body{padding:16px 16px 4px}
+.plate-empty{color:var(--ink-2);font-size:14px;padding:6px 0 14px}
+.headline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-family:var(--f-display);font-stretch:108%;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.headline b{font-size:30px;font-weight:750;line-height:1}
+.headline span{font-size:13px;color:var(--ink-3);font-family:var(--f-mono);margin-left:3px}
+.specs{margin:0;display:grid}
+.specs>div{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.specs dt{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.specs dd{margin:0;font-weight:600;font-size:14px;min-width:0}
+.specs dd small{display:block;font-weight:400;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:0 7px;border-radius:999px;margin-left:4px;vertical-align:1px}
+.tag.ok{color:var(--ok);background:var(--ok-wash)}
+.tag.warn{color:var(--warn);background:var(--warn-wash)}
+.mix{padding:12px 0;border-bottom:1px solid var(--line)}
+.mix-title{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;display:flex;justify-content:space-between}
+.mixbar{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;background:var(--panel)}
+.mixbar span{display:block;flex-basis:0;min-width:2px}
+.m-solar{background:var(--mix-solar)}.m-batt{background:var(--mix-batt)}.m-grid{background:var(--mix-grid)}
+.mixlegend{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:4px;font-size:12.5px;color:var(--ink-2)}
+.mixlegend li{display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:8px;align-items:center}
+.mixlegend i{width:10px;height:10px;border-radius:2px}
+.mixlegend b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.mixlegend em{font-style:normal;color:var(--ink-3);font-variant-numeric:tabular-nums;min-width:4ch;text-align:right}
+.money{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:0}
+.money>div{padding:11px 0;border-bottom:1px solid var(--line)}
+.money>div:nth-child(odd){padding-right:10px}
+.money>div:nth-child(even){padding-left:12px;border-left:1px solid var(--line)}
+.money dt{font-size:12px;color:var(--ink-3)}
+.money dd{margin:2px 0 0;font-family:var(--f-display);font-stretch:104%;font-weight:700;font-size:19px;line-height:1.2}
+.flags{list-style:none;margin:0;padding:12px 0 4px;display:grid;gap:8px}
+.flags li{font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:var(--r);display:flex;gap:8px}
+.flags li.warn{background:var(--warn-wash);color:var(--ink)}
+.flags li.info{background:var(--panel-2);color:var(--ink-2)}
+.flags li::before{content:"!";flex:none;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;font-size:11px;font-weight:800;margin-top:1px;background:var(--warn);color:var(--panel)}
+.flags li.info::before{content:"i";background:var(--ink-3)}
+.plate-foot{position:sticky;bottom:0;background:var(--panel);padding:14px 16px 16px;display:grid;gap:10px}
+.missing{font-size:12.5px;color:var(--bad);font-weight:600}
+
+.mbar{display:none}
+
+/* ---------- quote view ---------- */
+.quoteview{padding-block:22px 64px}
+.qtools{max-width:880px;margin:0 auto 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.qtools .spacer{flex:1}
+.toast{font-size:13px;color:var(--ok);font-weight:600}
+#copy-fallback{max-width:880px;margin:0 auto 16px;display:block;width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
+
+.paper{background:var(--paper);color:var(--paper-ink);max-width:880px;margin:0 auto;border-radius:4px;box-shadow:var(--shadow);padding:clamp(20px,5.5vw,56px);font-size:14px;line-height:1.55;color-scheme:light}
+.paper a{color:var(--paper-brand)}
+.lh{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 32px;align-items:start}
+.co-name{font-family:var(--f-display);font-stretch:112%;font-weight:750;font-size:20px;line-height:1.2;color:var(--paper-ink)}
+.co-name.placeholder{color:var(--paper-ink-3)}
+.co-line{color:var(--paper-ink-2);font-size:13px;margin-top:4px;white-space:pre-line}
+.doc-kind{font-family:var(--f-display);font-stretch:125%;font-weight:800;font-size:clamp(26px,4.6vw,38px);letter-spacing:.03em;text-transform:uppercase;color:var(--paper-brand);line-height:1;text-align:right}
+.doc-meta{margin:12px 0 0;display:grid;grid-template-columns:auto auto;gap:3px 14px;justify-content:end;font-size:13px}
+.doc-meta dt{color:var(--paper-ink-3);text-align:right}
+.doc-meta dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.cellband{height:12px;margin:24px 0 28px;border-radius:2px;background:repeating-linear-gradient(90deg,transparent 0 26px,var(--paper) 26px 28px),linear-gradient(90deg,var(--paper-brand) 0 80%,var(--paper-sun) 80% 100%)}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:20px 32px}
+.parties h4,.paper .lbl4{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-ink-3);font-weight:500;margin-bottom:6px}
+.parties p{color:var(--paper-ink-2)}
+.parties b{color:var(--paper-ink);font-size:15px}
+.paper section{margin-top:34px}
+.paper h3{font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-brand);margin:0 0 14px;display:flex;align-items:center;gap:12px}
+.paper h3::after{content:"";flex:1;height:1px;background:var(--paper-line)}
+.glance{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.glance>div{background:var(--paper-tint);border-radius:4px;padding:14px 14px 12px;min-width:0}
+.glance .k{font-size:11.5px;color:var(--paper-ink-3);font-weight:600}
+.glance .v{font-family:var(--f-display);font-stretch:108%;font-weight:750;font-size:27px;line-height:1.1;margin-top:4px}
+.glance .v small{font-size:14px;font-weight:600;color:var(--paper-ink-2);margin-left:3px}
+.glance .s{font-size:12px;color:var(--paper-ink-2);margin-top:4px}
+.lede{margin-top:20px;color:var(--paper-ink-2);max-width:72ch}
+.lede b{color:var(--paper-ink)}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.qt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13.5px;min-width:560px}
+.qt th{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--paper-ink-3);font-weight:500;text-align:left;padding:0 8px 8px;border-bottom:1.5px solid var(--paper-ink)}
+.qt td{padding:10px 8px;border-bottom:1px solid var(--paper-line);vertical-align:top}
+.qt .n{text-align:right;white-space:nowrap}
+.qt td small{display:block;color:var(--paper-ink-3);font-size:12.5px;margin-top:2px}
+.qt .idx{color:var(--paper-ink-3);font-family:var(--f-mono);font-size:12px;width:28px}
+.incl{color:var(--paper-ink-3);font-style:italic}
+.totals{margin:14px 0 0 auto;width:min(100%,380px);display:grid;font-variant-numeric:tabular-nums}
+.totals>div{display:flex;justify-content:space-between;gap:16px;padding:6px 8px;font-size:13.5px}
+.totals dt{color:var(--paper-ink-2)}
+.totals dd{margin:0;font-weight:600}
+.totals .grand{background:var(--paper-sun-wash);border-top:2px solid var(--paper-ink);margin-top:6px;padding:10px 8px;font-size:16px}
+.totals .grand dt{color:var(--paper-ink);font-weight:700}
+.totals .grand dd{font-family:var(--f-display);font-stretch:106%;font-weight:800;font-size:19px}
+.totals .note{font-size:12px;color:var(--paper-ink-3);justify-content:flex-end}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:28px 36px}
+.two>section{margin-top:0}
+.two-wrap{margin-top:34px}
+.kv{margin:0;display:grid}
+.kv>div{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid var(--paper-line);font-size:13.5px}
+.kv dt{color:var(--paper-ink-2)}
+.kv dd{margin:0;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.callout{display:flex;gap:14px;align-items:flex-start;background:var(--paper-tint);border-radius:4px;padding:14px;margin-bottom:12px}
+.callout .big{font-family:var(--f-display);font-stretch:118%;font-weight:800;font-size:26px;line-height:1;color:var(--paper-brand);white-space:nowrap}
+.callout p{font-size:13px;color:var(--paper-ink-2)}
+.callout b{color:var(--paper-ink)}
+.fin{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--paper-line);border-left:1px solid var(--paper-line)}
+.fin>div{padding:12px 14px;border-right:1px solid var(--paper-line);border-bottom:1px solid var(--paper-line);min-width:0}
+.fin .k{font-size:12px;color:var(--paper-ink-3);font-weight:600}
+.fin .v{font-family:var(--f-display);font-stretch:104%;font-weight:750;font-size:22px;line-height:1.2;margin-top:2px}
+.fin .s{font-size:12px;color:var(--paper-ink-2)}
+.fin .hl{background:var(--paper-sun-wash)}
+.chartwrap{position:relative;margin-top:18px}
+.chart-title{font-size:13px;font-weight:600;color:var(--paper-ink)}
+.chart-sub{font-size:12px;color:var(--paper-ink-3);margin-bottom:6px}
+.chartwrap svg{display:block;width:100%;height:auto;max-width:100%}
+.cf-tip{position:absolute;pointer-events:none;background:var(--paper-ink);color:var(--paper);font-size:12px;line-height:1.4;padding:7px 10px;border-radius:4px;transform:translateX(-50%);white-space:nowrap;font-variant-numeric:tabular-nums}
+.chartwrap svg text{font-variant-numeric:tabular-nums}
+.cf-tip b{display:block}
+.paper details{margin-top:12px;border-top:1px solid var(--paper-line)}
+.paper details>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--paper-brand);padding:10px 0}
+.qt.compact{min-width:480px;font-size:12.5px}
+.qt.compact td{padding:5px 8px}
+.wlist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.wlist li{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start;font-size:13.5px}
+.wtag{font-family:var(--f-mono);font-size:11px;font-weight:500;text-align:center;border:1.5px solid var(--paper-brand);color:var(--paper-brand);border-radius:3px;padding:3px 2px;letter-spacing:.02em}
+.wlist small{display:block;color:var(--paper-ink-2);font-size:12.5px}
+.tier{display:inline-block;margin-top:12px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;background:var(--paper-brand);color:var(--paper);padding:3px 8px;border-radius:3px}
+.mon{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mon>div{border:1px solid var(--paper-line);border-radius:4px;padding:12px}
+.mon .k{font-size:12px;color:var(--paper-ink-3);font-weight:600}
+.mon .v{font-family:var(--f-display);font-stretch:104%;font-weight:700;font-size:22px;color:var(--paper-ink-3);margin-top:2px}
+.mon .s{font-size:11.5px;color:var(--paper-ink-3)}
+.mon-note{font-size:13px;color:var(--paper-ink-2);margin-top:10px}
+.terms{display:grid;grid-template-columns:1fr 1fr;gap:20px 36px;font-size:13px;color:var(--paper-ink-2)}
+.terms ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.terms p+p{margin-top:6px}
+.terms b{color:var(--paper-ink)}
+.notes{margin-top:16px;font-size:13px;color:var(--paper-ink-2);white-space:pre-line;background:var(--paper-tint);padding:12px 14px;border-radius:4px}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:28px 48px;margin-top:44px}
+.sign .line{border-top:1px solid var(--paper-ink);margin-top:44px;padding-top:6px;font-weight:600}
+.sign small{display:block;color:var(--paper-ink-3);font-size:12px;font-weight:400}
+.qfoot{margin-top:36px;padding-top:14px;border-top:1px solid var(--paper-line);font-size:11.5px;color:var(--paper-ink-3);line-height:1.5}
+
+/* ---------- responsive ---------- */
+@media (max-width:1060px){ .workbench{grid-template-columns:minmax(0,1fr) 320px;gap:22px} .sec{grid-template-columns:160px minmax(0,1fr)} }
+@media (max-width:959px){
+  .workbench{grid-template-columns:minmax(0,1fr);padding-block:16px 32px}
+  .plate{position:static;max-height:none;overflow:visible}
+  .plate-foot{position:static}
+  .mbar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgb(0 0 0 / .08);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .mbar-in{display:flex;align-items:center;gap:12px;padding-block:10px}
+  .mbar-sum{flex:1;min-width:0;font-size:12.5px;color:var(--ink-2);line-height:1.35}
+  .mbar-sum b{color:var(--ink);font-size:14px}
+  .mbar .cta{width:auto;padding:11px 16px;font-size:14.5px}
+  body.on-inputs{padding-bottom:84px}
+}
+@media (max-width:720px){
+  .sec{grid-template-columns:minmax(0,1fr);gap:16px}
+  .two,.terms,.parties,.sign{grid-template-columns:minmax(0,1fr)}
+  .glance{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fin{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mon{grid-template-columns:minmax(0,1fr)}
+  .lh{grid-template-columns:minmax(0,1fr)}
+  .doc-kind{text-align:left}
+  .doc-meta{justify-content:start}
+  .doc-meta dt{text-align:left}
+}
+@media (max-width:560px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .step{padding:6px 8px;font-size:13px}
+  .brand .long{display:none}
+  .glance .v{font-size:23px}
+  .fin .v{font-size:19px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  body{background:#fff}
+  body::before,.topbar,.qtools,.mbar,#view-inputs,#copy-fallback{display:none!important}
+  .quoteview{padding:0}
+  .paper{box-shadow:none;max-width:none;padding:0}
+  .paper section,.two,.sign{break-inside:avoid}
+  .tscroll{overflow:visible}
+}
+</style>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="7" width="24" height="18" rx="2" fill="var(--cell)"/><path d="M9 7v18M17 7v18M1 13h24M1 19h24" stroke="var(--panel)" stroke-width="1.4"/><circle cx="20" cy="5" r="4" fill="var(--sun)" stroke="var(--panel)" stroke-width="1.5"/></svg>
+      <span>Solar Quotation<span class="long"> Builder</span></span>
+    </div>
+    <nav class="steps" aria-label="Steps">
+      <a class="step" id="step-inputs" href="#inputs"><span>1</span>Project inputs</a>
+      <a class="step" id="step-quote" href="#quote"><span>2</span>Quotation</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ================= INPUTS ================= -->
+<div id="view-inputs" class="wrap workbench">
+  <div class="formcol">
+    <div class="intro">
+      <div>
+        <h1>Size the system, then generate the quote</h1>
+        <p>Fill in the required fields. Every other choice has a sensible default you can change. The recommended system updates in the summary panel as you type.</p>
+        <span class="loaded" id="loaded-tag">Loaded: Leo Yap project from your notes</span>
+      </div>
+      <div class="intro-actions">
+        <button type="button" class="btn" id="btn-sample">Load Leo Yap sample</button>
+        <button type="button" class="btn" id="btn-blank">Start blank project</button>
+      </div>
+    </div>
+
+    <form id="f" novalidate autocomplete="off">
+      <!-- Client & site -->
+      <fieldset class="sec">
+        <div class="sec-head"><h2>Client &amp; site</h2><p>Who the quote is for and where the system goes.</p><span class="count">2 required</span></div>
+        <div class="grid">
+          <div class="field span2">
+            <label for="clientName">Client name <b class="req">Required</b></label>
+            <input type="text" id="clientName" name="clientName" placeholder="e.g. Leo Yap">
+            <small class="err" id="err-clientName" hidden></small>
+          </div>
+          <div class="field span2">
+            <label for="siteAddress">Project address <b class="req">Required</b></label>
+            <input type="text" id="siteAddress" name="siteAddress" placeholder="Subdivision, street, city">
+            <small class="err" id="err-siteAddress" hidden></small>
+          </div>
+          <div class="field">
+            <label for="clientPhone">Contact number <i class="opt">Optional</i></label>
+            <input type="tel" id="clientPhone" name="clientPhone" placeholder="09xx xxx xxxx">
+          </div>
+          <div class="field">
+            <label for="clientEmail">Email <i class="opt">Optional</i></label>
+            <input type="email" id="clientEmail" name="clientEmail" placeholder="name@example.com">
+          </div>
+          <div class="field">
+            <label for="propertyType">Property type</label>
+            <select id="propertyType" name="propertyType">
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial</option>
+              <option value="industrial">Industrial</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="utility">Utility provider</label>
+            <select id="utility" name="utility">
+              <option value="dlpc">Davao Light &amp; Power Co.</option>
+              <option value="meralco">Meralco</option>
+              <option value="veco">Visayan Electric (VECO)</option>
+              <option value="coop">Electric cooperative</option>
+              <option value="other">Other utility</option>
+            </select>
+            <small class="hint">Changing this fills in a typical rate. Use the rate from the actual bill.</small>
+          </div>
+          <div class="field span2">
+            <span class="lbl" id="lbl-phase">Service type</span>
+            <div class="seg" role="radiogroup" aria-labelledby="lbl-phase">
+              <label><input type="radio" id="phase-single" name="phase" value="single"><span>Single-phase</span></label>
+              <label><input type="radio" id="phase-three" name="phase" value="three"><span>Three-phase</span></label>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Energy use -->
+      <fieldset class="sec">
+        <div class="sec-head"><h2>Energy use</h2><p>Taken from the latest electric bill. Use a 12-month average if you have it.</p><span class="count">3 required</span></div>
+        <div class="grid">
+          <div class="field span2">
+            <span class="lbl" id="lbl-mode">Enter usage as</span>
+            <div class="seg" role="radiogroup" aria-labelledby="lbl-mode">
+              <label><input type="radio" id="mode-kwh" name="inputMode" value="kwh"><span>kWh per month</span></label>
+              <label><input type="radio" id="mode-bill" name="inputMode" value="bill"><span>Monthly bill amount</span></label>
+            </div>
+          </div>
+          <div class="field" data-when="inputMode:kwh">
+            <label for="monthlyKwh">Monthly consumption <b class="req">Required</b></label>
+            <div class="unit"><input type="number" id="monthlyKwh" name="monthlyKwh" min="0" step="1" inputmode="decimal"><span>kWh/mo</span></div>
+            <small class="hint" id="hint-kwh"></small>
+            <small class="err" id="err-monthlyKwh" hidden></small>
+          </div>
+          <div class="field" data-when="inputMode:bill">
+            <label for="monthlyBill">Monthly bill <b class="req">Required</b></label>
+            <div class="unit pre"><span>₱</span><input type="number" id="monthlyBill" name="monthlyBill" min="0" step="1" inputmode="decimal"></div>
+            <small class="hint" id="hint-bill"></small>
+            <small class="err" id="err-monthlyBill" hidden></small>
+          </div>
+          <div class="field" data-when="itemize:false">
+            <label for="rate">Electricity rate <b class="req">Required</b></label>
+            <div class="unit pre"><span>₱</span><input type="number" id="rate" name="rate" min="0" step="0.01" inputmode="decimal"></div>
+            <small class="hint">All-in rate per kWh: total bill ÷ kWh used.</small>
+            <small class="err" id="err-rate" hidden></small>
+          </div>
+          <div class="field" data-when="itemize:true">
+            <span class="lbl">Electricity rate</span>
+            <p class="sumline">Blended rate <b id="rate-sum">₱0.00 / kWh</b></p>
+            <small class="hint">Sum of the itemized charges below.</small>
+          </div>
+          <div class="field span2">
+            <label class="check" for="itemize"><input type="checkbox" id="itemize" name="itemize"><span>Itemize the rate from the bill <i class="opt">Optional</i><small>Generation, transmission, system loss, distribution, universal charges and taxes, each per kWh.</small></span></label>
+          </div>
+          <div class="span2 grid3" data-when="itemize:true">
+            <div class="field"><label for="rGen">Generation</label><div class="unit pre"><span>₱</span><input type="number" id="rGen" name="rGen" step="0.01" min="0"></div></div>
+            <div class="field"><label for="rTrans">Transmission</label><div class="unit pre"><span>₱</span><input type="number" id="rTrans" name="rTrans" step="0.01" min="0"></div></div>
+            <div class="field"><label for="rLoss">System loss</label><div class="unit pre"><span>₱</span><input type="number" id="rLoss" name="rLoss" step="0.01" min="0"></div></div>
+            <div class="field"><label for="rDist">Distribution</label><div class="unit pre"><span>₱</span><input type="number" id="rDist" name="rDist" step="0.01" min="0"></div></div>
+            <div class="field"><label for="rUniv">Universal charges</label><div class="unit pre"><span>₱</span><input type="number" id="rUniv" name="rUniv" step="0.01" min="0"></div></div>
+            <div class="field"><label for="rTax">VAT &amp; other taxes</label><div class="unit pre"><span>₱</span><input type="number" id="rTax" name="rTax" step="0.01" min="0"></div></div>
+          </div>
+          <div class="field">
+            <label for="peakKw">Peak demand / connected load <b class="req">Required</b></label>
+            <div class="unit"><input type="number" id="peakKw" name="peakKw" min="0" step="0.5" inputmode="decimal"><span>kW</span></div>
+            <small class="hint">Contracted capacity, or the highest demand on record.</small>
+            <small class="err" id="err-peakKw" hidden></small>
+          </div>
+          <div class="field">
+            <label for="essentialKw">Essential load in a brownout <i class="opt">Optional</i></label>
+            <div class="unit"><input type="number" id="essentialKw" name="essentialKw" min="0" step="0.5" inputmode="decimal"><span>kW</span></div>
+            <small class="hint">Lights, fridge, Wi-Fi and the air-cons you must keep running. Used for backup hours.</small>
+          </div>
+          <div class="field span2">
+            <span class="lbl" id="lbl-profile">Load profile: when is power used?</span>
+            <div class="chips" role="group" aria-labelledby="lbl-profile">
+              <button type="button" class="chip" id="lp-day" data-preset="70">Daytime-heavy <small>offices, shops</small></button>
+              <button type="button" class="chip" id="lp-bal" data-preset="50">Balanced</button>
+              <button type="button" class="chip" id="lp-night" data-preset="35">Night-heavy <small>evening air-con</small></button>
+            </div>
+            <div class="range"><input type="range" id="dayShare" name="dayShare" min="15" max="90" step="5" aria-label="Daytime share of consumption"><output id="o-dayShare" for="dayShare"></output></div>
+            <small class="hint">Share of daily kWh used between 7 AM and 5 PM. Night use is what the battery covers.</small>
+          </div>
+          <div class="field">
+            <label for="roofArea">Available roof area <i class="opt">Optional</i></label>
+            <div class="unit"><input type="number" id="roofArea" name="roofArea" min="0" step="1" inputmode="decimal"><span>m²</span></div>
+            <small class="hint" id="hint-roof">Checks that the array fits. Leave blank to skip.</small>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- System design -->
+      <fieldset class="sec">
+        <div class="sec-head"><h2>System design</h2><p>Defaults follow the dual-inverter hybrid design. Set any choice to Auto to let the calculator size it.</p></div>
+        <div class="grid">
+          <div class="field span2">
+            <span class="lbl" id="lbl-systype">System type</span>
+            <div class="seg" role="radiogroup" aria-labelledby="lbl-systype">
+              <label><input type="radio" id="st-hybrid" name="systemType" value="hybrid"><span>Hybrid: solar + battery</span></label>
+              <label><input type="radio" id="st-grid" name="systemType" value="grid"><span>Grid-tied: no battery</span></label>
+            </div>
+          </div>
+
+          <div class="subhead">Inverters</div>
+          <div class="field">
+            <label for="invSize">Inverter unit rating</label>
+            <select id="invSize" name="invSize">
+              <option value="5">5 kW</option><option value="8">8 kW</option><option value="10">10 kW</option><option value="12">12 kW</option>
+              <option value="16">16 kW</option><option value="20">20 kW</option><option value="25">25 kW</option><option value="30">30 kW</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="invQty">Number of inverters</label>
+            <select id="invQty" name="invQty">
+              <option value="auto">Auto (recommended)</option>
+              <option value="1">1 unit</option><option value="2">2 units</option><option value="3">3 units</option>
+              <option value="4">4 units</option><option value="5">5 units</option><option value="6">6 units</option>
+            </select>
+            <small class="hint" id="hint-inv"></small>
+          </div>
+          <div class="field span2">
+            <label class="check" for="parallel"><input type="checkbox" id="parallel" name="parallel"><span>Stack at least two inverters in parallel<small>Recommended. Shares the surge when several air-cons start at once, so the system does not trip.</small></span></label>
+          </div>
+          <div class="field span2">
+            <label for="simultaneity">Simultaneous load</label>
+            <div class="range"><input type="range" id="simultaneity" name="simultaneity" min="50" max="100" step="5"><output id="o-simultaneity" for="simultaneity"></output></div>
+            <small class="hint">Share of peak demand that runs at the same moment. Inverter AC capacity is sized to this.</small>
+          </div>
+
+          <div class="subhead">Solar array</div>
+          <div class="field">
+            <label for="panelW">Panel</label>
+            <select id="panelW" name="panelW">
+              <option value="450">450 W mono PERC</option>
+              <option value="550">550 W mono PERC</option>
+              <option value="580">580 W N-type TOPCon</option>
+              <option value="625">625 W N-type bifacial</option>
+            </select>
+          </div>
+          <div class="field">
+            <span class="lbl" id="lbl-sizing">Size the array by</span>
+            <div class="seg" role="radiogroup" aria-labelledby="lbl-sizing">
+              <label><input type="radio" id="sz-ratio" name="sizingMode" value="ratio"><span>DC/AC ratio</span></label>
+              <label><input type="radio" id="sz-offset" name="sizingMode" value="offset"><span>Bill offset</span></label>
+            </div>
+          </div>
+          <div class="field span2" data-when="sizingMode:ratio">
+            <label for="dcac">DC/AC oversizing ratio</label>
+            <div class="range"><input type="range" id="dcac" name="dcac" min="1.15" max="1.56" step="0.01"><output id="o-dcac" for="dcac"></output></div>
+            <small class="hint">Panel kWp ÷ inverter kW. 1.15–1.56× adds morning, late-afternoon and overcast output.</small>
+          </div>
+          <div class="field span2" data-when="sizingMode:offset">
+            <label for="offsetTarget">Target share of consumption from solar</label>
+            <div class="range"><input type="range" id="offsetTarget" name="offsetTarget" min="30" max="100" step="5"><output id="o-offsetTarget" for="offsetTarget"></output></div>
+            <small class="hint">The array stays within 1.15–1.56× of inverter capacity.</small>
+          </div>
+
+          <div class="subhead" data-when="systemType:hybrid">Battery storage (LiFePO4, 16 kWh modules)</div>
+          <div class="field" data-when="systemType:hybrid">
+            <label for="batQty">Battery modules</label>
+            <select id="batQty" name="batQty">
+              <option value="auto">Auto (recommended)</option>
+              <option value="1">1 module · 16 kWh</option><option value="2">2 modules · 32 kWh</option><option value="3">3 modules · 48 kWh</option>
+              <option value="4">4 modules · 64 kWh</option><option value="5">5 modules · 80 kWh</option><option value="6">6 modules · 96 kWh</option>
+              <option value="7">7 modules · 112 kWh</option><option value="8">8 modules · 128 kWh</option><option value="9">9 modules · 144 kWh</option>
+              <option value="10">10 modules · 160 kWh</option>
+            </select>
+            <small class="hint" id="hint-bat"></small>
+          </div>
+          <div class="field" data-when="systemType:hybrid">
+            <label for="nightCover">Night load to cover</label>
+            <div class="range"><input type="range" id="nightCover" name="nightCover" min="10" max="100" step="5"><output id="o-nightCover" for="nightCover"></output></div>
+            <small class="hint">Used by Auto to pick the module count.</small>
+          </div>
+          <div class="field span2" data-when="systemType:hybrid">
+            <label for="reserve">Emergency reserve</label>
+            <div class="range"><input type="range" id="reserve" name="reserve" min="10" max="40" step="5"><output id="o-reserve" for="reserve"></output></div>
+            <small class="hint">Kept in the battery for brownouts and never used for daily savings.</small>
+          </div>
+
+          <details class="more" id="adv">
+            <summary>Site &amp; performance assumptions <small>sun hours, losses, net metering</small></summary>
+            <div class="grid">
+              <div class="field">
+                <label for="psh">Peak sun hours</label>
+                <div class="unit"><input type="number" id="psh" name="psh" min="2" max="7" step="0.1"><span>h/day</span></div>
+                <small class="hint">About 4.0 for Davao.</small>
+              </div>
+              <div class="field">
+                <label for="pr">Performance ratio</label>
+                <div class="unit"><input type="number" id="pr" name="pr" min="50" max="95" step="1"><span>%</span></div>
+                <small class="hint">After heat, wiring, soiling and inverter losses.</small>
+              </div>
+              <div class="field" data-when="systemType:hybrid">
+                <label for="rte">Battery round-trip efficiency</label>
+                <div class="unit"><input type="number" id="rte" name="rte" min="70" max="100" step="1"><span>%</span></div>
+              </div>
+              <div class="field span2">
+                <label class="check" for="netMeter"><input type="checkbox" id="netMeter" name="netMeter"><span>Apply for net metering<small>Surplus solar exported to the grid earns a bill credit.</small></span></label>
+              </div>
+              <div class="field" data-when="netMeter:true">
+                <label for="exportRate">Export credit</label>
+                <div class="unit pre"><span>₱</span><input type="number" id="exportRate" name="exportRate" min="0" step="0.01"></div>
+                <small class="hint">Per kWh exported. Usually the blended generation charge.</small>
+              </div>
+            </div>
+          </details>
+        </div>
+      </fieldset>
+
+      <!-- Pricing -->
+      <fieldset class="sec">
+        <div class="sec-head"><h2>Pricing</h2><p>Unit prices are pre-filled. Replace them with your supplier costs.</p></div>
+        <div class="grid">
+          <div class="field">
+            <label for="pPanel">Solar panel, per piece</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pPanel" name="pPanel" min="0" step="100"></div>
+            <small class="hint">Refills when you change the panel.</small>
+          </div>
+          <div class="field">
+            <label for="pInv">Inverter, per unit</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pInv" name="pInv" min="0" step="1000"></div>
+            <small class="hint">Refills when you change rating or system type.</small>
+          </div>
+          <div class="field" data-when="systemType:hybrid">
+            <label for="pBat">Battery module (16 kWh), each</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pBat" name="pBat" min="0" step="1000"></div>
+            <small class="hint">Also the price quoted for each expansion module.</small>
+          </div>
+          <div class="field">
+            <label for="pMount">Mounting &amp; racking, per panel</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pMount" name="pMount" min="0" step="50"></div>
+          </div>
+          <div class="field">
+            <label for="pBos">Balance of system &amp; protection, per kWp</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pBos" name="pBos" min="0" step="100"></div>
+          </div>
+          <div class="field">
+            <label for="pInstall">Installation &amp; commissioning, per kWp</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pInstall" name="pInstall" min="0" step="100"></div>
+          </div>
+          <div class="field">
+            <label for="pEng">Engineering, permits &amp; net metering</label>
+            <div class="unit pre"><span>₱</span><input type="number" id="pEng" name="pEng" min="0" step="500"></div>
+            <small class="hint">One lump sum.</small>
+          </div>
+          <div class="field">
+            <label for="discount">Discount <i class="opt">Optional</i></label>
+            <div class="unit"><input type="number" id="discount" name="discount" min="0" max="50" step="0.5"><span>%</span></div>
+          </div>
+          <div class="field span2">
+            <label for="vatMode">VAT</label>
+            <select id="vatMode" name="vatMode">
+              <option value="incl">Prices include 12% VAT</option>
+              <option value="add">Add 12% VAT on top</option>
+              <option value="none">No VAT</option>
+            </select>
+          </div>
+          <details class="more" id="finadv">
+            <summary>Financial assumptions <small>rate increases, degradation, maintenance</small></summary>
+            <div class="grid">
+              <div class="field">
+                <label for="escalation">Electricity rate increase</label>
+                <div class="unit"><input type="number" id="escalation" name="escalation" min="0" max="15" step="0.5"><span>%/yr</span></div>
+              </div>
+              <div class="field">
+                <label for="degradation">Panel degradation</label>
+                <div class="unit"><input type="number" id="degradation" name="degradation" min="0" max="2" step="0.05"><span>%/yr</span></div>
+              </div>
+              <div class="field">
+                <label for="om">Cleaning &amp; maintenance</label>
+                <div class="unit pre"><span>₱</span><input type="number" id="om" name="om" min="0" step="500"></div>
+                <small class="hint">Per year.</small>
+              </div>
+            </div>
+          </details>
+        </div>
+      </fieldset>
+
+      <!-- Quotation details -->
+      <fieldset class="sec">
+        <div class="sec-head"><h2>Quotation details</h2><p>Your company, numbering and terms. Company details carry over to new projects.</p></div>
+        <div class="grid">
+          <div class="field span2">
+            <label for="company">Your company name <i class="opt">Optional</i></label>
+            <input type="text" id="company" name="company" placeholder="Shown on the letterhead">
+          </div>
+          <div class="field span2">
+            <label for="companyContact">Company address &amp; contact <i class="opt">Optional</i></label>
+            <input type="text" id="companyContact" name="companyContact" placeholder="Address · phone · email · TIN">
+          </div>
+          <div class="field">
+            <label for="preparedBy">Prepared by <i class="opt">Optional</i></label>
+            <input type="text" id="preparedBy" name="preparedBy" placeholder="Name, position">
+          </div>
+          <div class="field">
+            <label for="quoteNo">Quotation number</label>
+            <input type="text" id="quoteNo" name="quoteNo" class="mono">
+          </div>
+          <div class="field">
+            <label for="quoteDate">Quotation date</label>
+            <input type="date" id="quoteDate" name="quoteDate">
+          </div>
+          <div class="field">
+            <label for="validity">Valid for</label>
+            <select id="validity" name="validity">
+              <option value="7">7 days</option><option value="15">15 days</option><option value="30">30 days</option><option value="60">60 days</option>
+            </select>
+          </div>
+          <div class="field span2">
+            <label for="payTerms">Payment terms</label>
+            <select id="payTerms" name="payTerms">
+              <option value="50-40-10">50% down · 40% on delivery · 10% after commissioning</option>
+              <option value="60-40">60% down · 40% after commissioning</option>
+              <option value="30-60-10">30% down · 60% on delivery · 10% after commissioning</option>
+              <option value="100">100% upon contract signing</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="leadTime">Lead time</label>
+            <input type="text" id="leadTime" name="leadTime">
+          </div>
+          <div class="field">
+            <label for="workmanship">Workmanship warranty</label>
+            <select id="workmanship" name="workmanship">
+              <option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option><option value="5">5 years</option>
+            </select>
+          </div>
+          <div class="field span2">
+            <label for="monitorUrl">Monitoring app link <i class="opt">Optional</i></label>
+            <input type="url" id="monitorUrl" name="monitorUrl" placeholder="https://">
+            <small class="hint">Where the client sees live generation, battery charge and grid import/export.</small>
+          </div>
+          <details class="more" id="labels">
+            <summary>Equipment brands on the quote <i class="opt">Optional</i></summary>
+            <div class="grid">
+              <div class="field"><label for="invBrand">Inverter brand / model</label><input type="text" id="invBrand" name="invBrand"></div>
+              <div class="field"><label for="panelBrand">Panel brand / model</label><input type="text" id="panelBrand" name="panelBrand" placeholder="Tier-1 manufacturer"></div>
+              <div class="field span2"><label for="batBrand">Battery brand / model</label><input type="text" id="batBrand" name="batBrand" placeholder="LiFePO4 stackable module"></div>
+            </div>
+          </details>
+          <div class="field span2">
+            <label for="notes">Notes to the client <i class="opt">Optional</i></label>
+            <textarea id="notes" name="notes" placeholder="Site conditions, special requests, promo terms…"></textarea>
+          </div>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <aside class="plate" aria-label="Recommended system">
+    <div class="plate-head"><span class="mono">Recommended system</span><span class="pill" id="pl-type">Hybrid</span></div>
+    <div class="plate-body" id="plate-body" aria-live="polite"></div>
+    <div class="plate-foot">
+      <p class="missing" id="pl-missing" hidden></p>
+      <button type="button" class="cta" id="gen">Generate quotation
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </aside>
+</div>
+
+<!-- ================= QUOTE ================= -->
+<div id="view-quote" class="wrap quoteview" hidden>
+  <div class="qtools">
+    <a class="btn" href="#inputs" id="back">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Edit inputs</a>
+    <span class="spacer"></span>
+    <span class="toast" id="toast" role="status"></span>
+    <button type="button" class="btn" id="copy">Copy quotation as text</button>
+  </div>
+  <textarea id="copy-fallback" readonly hidden aria-label="Quotation text"></textarea>
+  <article class="paper" id="paper"></article>
+</div>
+</main>
+
+<div class="mbar" id="mbar">
+  <div class="wrap mbar-in">
+    <div class="mbar-sum" id="mbar-sum"></div>
+    <button type="button" class="cta" id="gen2">Generate quotation</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const DAYS = 30.4, MODULE_KWH = 16, MAX_MODULES = 10, CO2_KG_PER_KWH = 0.71, CYCLES = 8000;
+const PANELS = {
+  450: {label:'450 W mono PERC', area:2.17, price:6200, spec:'Monocrystalline PERC'},
+  550: {label:'550 W mono PERC', area:2.58, price:7200, spec:'Monocrystalline PERC'},
+  580: {label:'580 W N-type TOPCon', area:2.58, price:7800, spec:'N-type TOPCon'},
+  625: {label:'625 W N-type bifacial', area:2.70, price:8500, spec:'N-type bifacial, dual-glass'}
+};
+const INV_PRICE = {5:68000, 8:98000, 10:118000, 12:138000, 16:165000, 20:198000, 25:235000, 30:268000};
+const invPrice = (size, type) => type === 'grid' ? Math.round(INV_PRICE[size] * 0.55 / 1000) * 1000 : INV_PRICE[size];
+const UTIL = {
+  dlpc:{name:'Davao Light & Power Co.', rate:10.5},
+  meralco:{name:'Meralco', rate:12.2},
+  veco:{name:'Visayan Electric (VECO)', rate:11.8},
+  coop:{name:'Electric cooperative', rate:11.0},
+  other:{name:'Other utility', rate:11.0}
+};
+const PAY = {
+  '50-40-10':[['Down payment upon contract signing',50],['Upon delivery of equipment on site',40],['After testing and commissioning',10]],
+  '60-40':[['Down payment upon contract signing',60],['After testing and commissioning',40]],
+  '30-60-10':[['Down payment upon contract signing',30],['Upon delivery of equipment on site',60],['After testing and commissioning',10]],
+  '100':[['Full payment upon contract signing',100]]
+};
+const PROPERTY = {residential:'Residential', commercial:'Commercial', industrial:'Industrial'};
+const RATE_ITEMS = ['rGen','rTrans','rLoss','rDist','rUniv','rTax'];
+const DRAFT_KEY = 'solar-quote-draft-v1';
+
+const pad = n => String(n).padStart(2, '0');
+const now = new Date();
+const isoToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const defaultQuoteNo = () => `SQ-${isoToday.replace(/-/g, '')}-01`;
+
+const SAMPLE = {
+  clientName:'Leo Yap', siteAddress:'Ladislao Garden Village, Davao City', clientPhone:'', clientEmail:'',
+  propertyType:'residential', utility:'dlpc', phase:'single',
+  inputMode:'kwh', monthlyKwh:4716, monthlyBill:'', rate:10.5, itemize:false,
+  rGen:5.85, rTrans:0.95, rLoss:0.55, rDist:1.55, rUniv:0.42, rTax:1.18,
+  peakKw:40, essentialKw:8, dayShare:35, roofArea:'',
+  systemType:'hybrid', invSize:'16', invQty:'auto', parallel:true, simultaneity:80,
+  panelW:'625', sizingMode:'ratio', dcac:1.17, offsetTarget:80,
+  batQty:'auto', nightCover:50, reserve:20, psh:4.0, pr:80, rte:95, netMeter:true, exportRate:5.0,
+  pPanel:8500, pInv:165000, pBat:110000, pMount:2200, pBos:4500, pInstall:6000, pEng:35000, discount:0, vatMode:'incl',
+  escalation:3, degradation:0.4, om:12000,
+  company:'', companyContact:'', preparedBy:'', quoteNo:defaultQuoteNo(), quoteDate:isoToday, validity:'30',
+  payTerms:'50-40-10', leadTime:'3–4 weeks after down payment', workmanship:'2', monitorUrl:'https://www.soliscloud.com',
+  invBrand:'Solis', panelBrand:'', batBrand:'', notes:''
+};
+const KEYS = Object.keys(SAMPLE);
+
+const $ = s => document.querySelector(s);
+const form = $('#f');
+let S = {}, R = {}, showErrors = false;
+
+/* ---------- formatting ---------- */
+const num = v => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : NaN; };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmt = (v, d = 0) => Number.isFinite(v) ? v.toLocaleString('en-PH', {minimumFractionDigits:d, maximumFractionDigits:d}) : '—';
+const trim = (v, d = 2) => Number.isFinite(v) ? Number(v.toFixed(d)).toLocaleString('en-PH', {maximumFractionDigits:d}) : '—';
+const peso = (v, d = 2) => Number.isFinite(v) ? (v < 0 ? '−' : '') + '₱' + Math.abs(v).toLocaleString('en-PH', {minimumFractionDigits:d, maximumFractionDigits:d}) : '—';
+const pesoShort = v => {
+  if (!Number.isFinite(v)) return '—';
+  const a = Math.abs(v), s = v < 0 ? '−' : '';
+  if (a >= 1e6) return `${s}₱${trim(a / 1e6, 2)}M`;
+  if (a >= 1e4) return `${s}₱${trim(a / 1e3, 0)}K`;
+  return `${s}₱${fmt(a, 0)}`;
+};
+const pct = (v, d = 0) => Number.isFinite(v) ? `${fmt(v * 100, d)}%` : '—';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const parseDate = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(); };
+const fmtDate = d => d.toLocaleDateString('en-PH', {year:'numeric', month:'long', day:'numeric'});
+const years = v => v === null ? 'Beyond 25 years' : `${trim(v, 1)} years`;
+
+/* ---------- form state ---------- */
+function readForm() {
+  const o = {};
+  for (const k of KEYS) {
+    const el = form.elements[k];
+    if (!el) continue;
+    if (typeof RadioNodeList !== 'undefined' && el instanceof RadioNodeList) o[k] = el.value;
+    else if (el.type === 'checkbox') o[k] = el.checked;
+    else if (el.type === 'number' || el.type === 'range') o[k] = el.value === '' ? '' : Number(el.value);
+    else o[k] = el.value;
+  }
+  return o;
+}
+function writeForm(s) {
+  for (const k of KEYS) {
+    const el = form.elements[k];
+    if (!el) continue;
+    if (typeof RadioNodeList !== 'undefined' && el instanceof RadioNodeList) el.value = s[k];
+    else if (el.type === 'checkbox') el.checked = !!s[k];
+    else el.value = s[k] ?? '';
+  }
+}
+function save() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(S)); } catch (e) {} }
+function loadDraft() { try { const t = localStorage.getItem(DRAFT_KEY); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
+
+/* ---------- sizing & financial engine ---------- */
+function compute(s) {
+  const R = {flags:[]};
+  const warn = t => R.flags.push({level:'warn', text:t});
+  const info = t => R.flags.push({level:'info', text:t});
+
+  const rate = s.itemize ? RATE_ITEMS.reduce((a, k) => a + (num(s[k]) || 0), 0) : num(s.rate);
+  R.rate = rate;
+  let mkwh, bill;
+  if (s.inputMode === 'bill') { bill = num(s.monthlyBill); mkwh = rate > 0 ? bill / rate : NaN; }
+  else { mkwh = num(s.monthlyKwh); bill = mkwh * rate; }
+  R.monthlyKwh = mkwh; R.monthlyBill = bill;
+  const peak = num(s.peakKw);
+  R.peak = peak;
+  R.ready = mkwh > 0 && rate > 0 && peak > 0;
+  if (!R.ready) return R;
+
+  const hybrid = s.systemType === 'hybrid';
+  R.hybrid = hybrid;
+  const daily = mkwh / DAYS;
+  const dayShare = clamp(num(s.dayShare) || 50, 0, 100) / 100;
+  const dayLoad = daily * dayShare, nightLoad = daily - dayLoad;
+  Object.assign(R, {daily, dayShare, dayLoad, nightLoad});
+
+  // Inverters: AC capacity covers the simultaneous share of peak demand
+  const invSize = +s.invSize;
+  const sim = clamp(num(s.simultaneity) || 80, 30, 100) / 100;
+  const targetAc = peak * sim;
+  let invQty;
+  if (s.invQty === 'auto') {
+    invQty = Math.max(Math.ceil(targetAc / invSize - 1e-9), s.parallel ? 2 : 1);
+    if (invQty > 6) { invQty = 6; warn(`Covering ${trim(targetAc, 1)} kW needs more than six ${invSize} kW units. Choose a larger unit rating.`); }
+  } else invQty = +s.invQty;
+  const acKw = invQty * invSize;
+  R.inv = {size:invSize, qty:invQty, acKw, targetAc, sim};
+  if (acKw + 0.01 < targetAc) warn(`Inverter output of ${trim(acKw, 1)} kW is below the ${trim(targetAc, 1)} kW simultaneous load. Add a unit or pick a larger rating.`);
+  if (s.phase === 'single' && invSize > 16) warn(`${invSize} kW inverters are usually three-phase. Check the model against a single-phase service.`);
+  if (s.parallel && invQty < 2) info('Parallel stacking needs at least two inverters. Set the count to Auto or 2+.');
+
+  // PV array: DC/AC ratio or offset target, balanced across inverters, limited by roof
+  const W = +s.panelW, P = PANELS[W];
+  const psh = num(s.psh) || 4, prf = (num(s.pr) || 80) / 100;
+  const yld = psh * prf;
+  const lo = acKw * 1.15, hi = acKw * 1.56;
+  let targetKwp;
+  if (s.sizingMode === 'offset') {
+    const want = (num(s.offsetTarget) || 80) / 100;
+    const need = daily * want / yld;
+    targetKwp = clamp(need, lo, hi);
+    if (need > hi) warn(`A ${fmt(want * 100)}% offset needs about ${trim(need, 1)} kWp, more than 1.56× the inverter capacity. The array is held at ${trim(hi, 1)} kWp; add inverter capacity to go further.`);
+  } else targetKwp = acKw * clamp(num(s.dcac) || 1.17, 1, 2);
+  let panels = Math.ceil(targetKwp * 1000 / W / invQty - 1e-9) * invQty;
+  const areaPer = P.area * 1.15;
+  const roof = num(s.roofArea);
+  if (roof > 0) {
+    const maxP = Math.floor(roof / areaPer / invQty) * invQty;
+    if (panels > maxP) {
+      panels = Math.max(maxP, invQty);
+      warn(`The ${fmt(roof)} m² roof fits about ${maxP} panels. The array is reduced to ${trim(panels * W / 1000, 2)} kWp.`);
+    }
+  }
+  const kwp = panels * W / 1000, ratio = kwp / acKw, pvDaily = kwp * yld;
+  R.pv = {W, P, panels, kwp, ratio, perInv:panels / invQty, areaNeed:panels * areaPer, roof:roof > 0 ? roof : null, daily:pvDaily, yld, psh, prf};
+  R.pv.ratioOk = ratio >= 1.149 && ratio <= 1.561;
+  if (!R.pv.ratioOk) warn(`DC/AC ratio of ${trim(ratio, 2)}× is outside the 1.15–1.56× target.`);
+
+  // Battery: night coverage after the emergency reserve
+  const reserve = hybrid ? clamp(num(s.reserve) || 0, 0, 60) / 100 : 0;
+  const rte = clamp(num(s.rte) || 95, 50, 100) / 100;
+  let batQty = 0;
+  if (hybrid) {
+    const need = nightLoad * (num(s.nightCover) || 0) / 100;
+    const raw = need / (MODULE_KWH * (1 - reserve));
+    const autoQ = clamp(Math.ceil(raw - 1e-9), 1, MAX_MODULES);
+    batQty = s.batQty === 'auto' ? autoQ : +s.batQty;
+    R.batAuto = autoQ;
+    if (s.batQty === 'auto' && raw > MAX_MODULES) warn('The night coverage target needs more than 10 modules. Storage is capped at 160 kWh.');
+  }
+  const batKwh = batQty * MODULE_KWH, reserveKwh = batKwh * reserve, cycleKwh = batKwh - reserveKwh;
+  const ess = num(s.essentialKw);
+  R.bat = {qty:batQty, kwh:batKwh, reserveKwh, cycleKwh, reserve, rte,
+    hoursReserve: ess > 0 ? reserveKwh / ess : null, hoursFull: ess > 0 ? batKwh / ess : null, ess: ess > 0 ? ess : null,
+    years: CYCLES / 365};
+
+  // Daily energy balance
+  const direct = Math.min(pvDaily, dayLoad);
+  const surplus = pvDaily - direct;
+  const discharged = hybrid ? Math.min(surplus * rte, cycleKwh, nightLoad) : 0;
+  const charged = discharged / rte;
+  const exported = Math.max(surplus - charged, 0);
+  const solarUsed = direct + discharged;
+  const gridImport = Math.max(daily - solarUsed, 0);
+  const exportRate = s.netMeter ? (num(s.exportRate) || 0) : 0;
+  R.en = {direct, surplus, discharged, charged, exported, solarUsed, gridImport, exportRate, offset:solarUsed / daily, pvMonthly:pvDaily * DAYS};
+  if (hybrid && cycleKwh > 0 && surplus * rte < cycleKwh * 0.9) info(`Daytime surplus refills about ${pct(surplus * rte / cycleKwh)} of the battery's daily capacity. Extra modules add backup hours more than savings.`);
+  if (!s.netMeter && exported > 1) info(`About ${fmt(exported)} kWh a day of surplus solar is unused without net metering.`);
+  if (hybrid && R.bat.hoursReserve !== null && R.bat.hoursReserve < 1) info(`The reserve covers the ${trim(ess, 1)} kW essential load for under an hour. Raise the reserve or add modules.`);
+
+  // Savings
+  let monthlySav = solarUsed * DAYS * rate + exported * DAYS * exportRate;
+  monthlySav = Math.min(monthlySav, bill);
+  const newBill = Math.max(bill - monthlySav, 0);
+
+  // Pricing lines
+  const price = k => num(s[k]) || 0;
+  const invName = `${s.invBrand ? s.invBrand.trim() + ' ' : ''}${invSize} kW ${hybrid ? 'hybrid' : 'grid-tie'} inverter`;
+  const lines = [];
+  lines.push({item:`${P.label} solar panel`, desc:`${s.panelBrand ? s.panelBrand.trim() + ', ' : 'Tier-1, '}${P.spec}. 25-year linear performance warranty.`, qty:panels, unit:'pcs', price:price('pPanel')});
+  lines.push({item:invName, desc:`${s.phase === 'three' ? 'Three' : 'Single'}-phase${invQty > 1 ? `, ${invQty} units in parallel for ${trim(acKw, 1)} kW AC` : ''}. 5-year replacement warranty.`, qty:invQty, unit:'units', price:price('pInv')});
+  if (hybrid) lines.push({item:'16 kWh LiFePO4 battery module', desc:`${s.batBrand ? s.batBrand.trim() + ', stackable' : 'Stackable'} to ${MAX_MODULES} modules (160 kWh). Rated 8,000 cycles.`, qty:batQty, unit:'modules', price:price('pBat')});
+  lines.push({item:'Mounting structure & racking', desc:'Anodized aluminum rails, clamps and roof attachments.', qty:panels, unit:'sets', price:price('pMount')});
+  lines.push({item:'Balance of system & protection', desc:`PV cables, MC4 connectors, DC/AC breakers, surge protection, combiner box${hybrid ? ' and backup (EPS) load panel' : ''}.`, qty:+kwp.toFixed(3), unit:'kWp', price:price('pBos')});
+  lines.push({item:'Installation, testing & commissioning', desc:'Labor, conduit runs, hauling and system start-up.', qty:+kwp.toFixed(3), unit:'kWp', price:price('pInstall')});
+  lines.push({item:`Engineering & permits${s.netMeter ? ', net-metering application' : ''}`, desc:`Single-line diagram, LGU permits${s.netMeter ? ' and utility net-metering processing' : ''}.`, qty:1, unit:'lot', price:price('pEng')});
+  lines.push({item:'Remote monitoring kit', desc:'Wi-Fi datalogger per inverter, app setup and client handover.', qty:invQty, unit:'units', price:0, included:true});
+  lines.forEach(l => l.amount = Math.round(l.qty * l.price * 100) / 100);
+  const subtotal = lines.reduce((a, l) => a + l.amount, 0);
+  const discountPct = clamp(num(s.discount) || 0, 0, 100) / 100;
+  const discountAmt = subtotal * discountPct;
+  const net = subtotal - discountAmt;
+  let vat = 0, total = net;
+  if (s.vatMode === 'add') { vat = net * 0.12; total = net + vat; }
+  else if (s.vatMode === 'incl') { vat = net - net / 1.12; }
+  R.money = {lines, subtotal, discountPct, discountAmt, net, vat, total, perWp: total / (kwp * 1000), monthlySav, newBill};
+
+  // 25-year cash flow
+  const escR = (num(s.escalation) || 0) / 100, degR = (num(s.degradation) || 0) / 100, om = num(s.om) || 0;
+  const y1 = monthlySav * 12;
+  const rows = [{y:0, sav:0, om:0, net:-total, cum:-total}];
+  let cum = -total, payback = null;
+  for (let y = 1; y <= 25; y++) {
+    const sav = y1 * Math.pow(1 + escR, y - 1) * Math.pow(1 - degR, y - 1);
+    const n = sav - om, prev = cum;
+    cum += n;
+    rows.push({y, sav, om, net:n, cum});
+    if (payback === null && prev < 0 && cum >= 0) payback = (y - 1) + (-prev) / n;
+  }
+  R.fin = {y1, rows, payback, cum25:cum, roi:total > 0 ? cum / total : NaN, irr:irr(rows.map(r => r.net)),
+    co2:solarUsed * 365 * CO2_KG_PER_KWH / 1000, escR, degR, om};
+  return R;
+}
+function irr(cfs) {
+  const npv = r => cfs.reduce((a, c, t) => a + c / Math.pow(1 + r, t), 0);
+  let lo = -0.9, hi = 3;
+  if (npv(lo) * npv(hi) > 0) return null;
+  for (let i = 0; i < 100; i++) { const m = (lo + hi) / 2; if (npv(lo) * npv(m) <= 0) hi = m; else lo = m; }
+  return (lo + hi) / 2;
+}
+
+/* ---------- validation ---------- */
+const FIELD_NAMES = {clientName:'client name', siteAddress:'project address', monthlyKwh:'monthly consumption', monthlyBill:'monthly bill', rate:'electricity rate', rGen:'itemized rate', peakKw:'peak demand'};
+function validate() {
+  const e = [];
+  if (!String(S.clientName).trim()) e.push(['clientName', 'Enter the client name.']);
+  if (!String(S.siteAddress).trim()) e.push(['siteAddress', 'Enter the project address.']);
+  if (S.inputMode === 'kwh' && !(num(S.monthlyKwh) > 0)) e.push(['monthlyKwh', 'Enter monthly consumption in kWh, from the bill.']);
+  if (S.inputMode === 'bill' && !(num(S.monthlyBill) > 0)) e.push(['monthlyBill', 'Enter the monthly bill amount in pesos.']);
+  if (!(R.rate > 0)) e.push([S.itemize ? 'rGen' : 'rate', 'Enter the rate per kWh. Divide the bill total by the kWh used.']);
+  if (!(num(S.peakKw) > 0)) e.push(['peakKw', 'Enter peak demand in kW. The contracted load on the bill works.']);
+  return e;
+}
+function renderErrors(errs) {
+  document.querySelectorAll('.err').forEach(el => { el.hidden = true; el.textContent = ''; });
+  form.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+  const miss = $('#pl-missing');
+  if (!errs.length) { miss.hidden = true; return; }
+  miss.hidden = false;
+  miss.textContent = `To generate the quote, fill in: ${errs.map(e => FIELD_NAMES[e[0]]).join(', ')}.`;
+  if (!showErrors) return;
+  for (const [k, msg] of errs) {
+    const el = form.elements[k];
+    if (el && el.setAttribute) el.setAttribute('aria-invalid', 'true');
+    const m = document.getElementById('err-' + k);
+    if (m) { m.textContent = msg; m.hidden = false; }
+  }
+}
+
+/* ---------- live panel ---------- */
+const OUT = {
+  dayShare: v => `${v}% day · ${100 - v}% night`,
+  simultaneity: v => `${v}% · ${Number.isFinite(R.inv?.targetAc) ? trim(R.inv.targetAc, 1) + ' kW' : '—'}`,
+  dcac: v => `${(+v).toFixed(2)}×`,
+  offsetTarget: v => `${v}%`,
+  nightCover: v => `${v}%`,
+  reserve: v => R.bat && R.bat.kwh ? `${v}% · ${trim(R.bat.reserveKwh, 1)} kWh` : `${v}%`
+};
+function renderPlate() {
+  const body = $('#plate-body');
+  $('#pl-type').textContent = S.systemType === 'hybrid' ? 'Hybrid' : 'Grid-tied';
+  if (!R.ready) {
+    body.innerHTML = `<div class="plate-empty">Enter monthly consumption, the electricity rate and peak demand. The recommended system appears here as you type.</div>`;
+    $('#mbar-sum').innerHTML = 'Fill in energy use to size the system';
+    return;
+  }
+  const {inv, pv, bat, en, money, fin} = R;
+  const mix = [['Solar, direct', en.direct, 'solar'], ['Battery, solar-charged', en.discharged, 'batt'], ['Grid', en.gridImport, 'grid']].filter(m => R.hybrid || m[2] !== 'batt');
+  body.innerHTML = `
+    <div class="headline">
+      <div><b>${trim(pv.kwp, 2)}</b><span>kWp</span></div>
+      <div><b>${trim(inv.acKw, 1)}</b><span>kW AC</span></div>
+      ${R.hybrid ? `<div><b>${bat.kwh}</b><span>kWh</span></div>` : ''}
+    </div>
+    <dl class="specs">
+      <div><dt>Inverters</dt><dd>${inv.qty} × ${inv.size} kW${inv.qty > 1 ? ' in parallel' : ''}<small>${trim(inv.acKw, 1)} kW AC for a ${trim(inv.targetAc, 1)} kW simultaneous load</small></dd></div>
+      <div><dt>PV array</dt><dd>${pv.panels} × ${pv.W} W panels<small>DC/AC ${trim(pv.ratio, 2)}× <span class="tag ${pv.ratioOk ? 'ok' : 'warn'}">${pv.ratioOk ? 'In range' : 'Check'}</span> · ${fmt(pv.daily * DAYS)} kWh/mo${pv.roof ? ` · ${fmt(pv.areaNeed)} of ${fmt(pv.roof)} m²` : ` · needs ~${fmt(pv.areaNeed)} m²`}</small></dd></div>
+      ${R.hybrid ? `<div><dt>Battery</dt><dd>${bat.qty} × 16 kWh = ${bat.kwh} kWh<small>${trim(bat.reserveKwh, 1)} kWh reserve${bat.hoursReserve !== null ? ` (${trim(bat.hoursReserve, 1)} h at ${trim(bat.ess, 1)} kW)` : ''} · expandable to 160 kWh</small></dd></div>` : ''}
+    </dl>
+    <div class="mix">
+      <div class="mix-title"><span>Daily energy mix</span><span>${fmt(R.daily)} kWh/day</span></div>
+      <div class="mixbar" role="img" aria-label="${mix.map(m => `${m[0]} ${fmt(m[1])} kWh`).join(', ')}">${mix.filter(m => m[1] > 0.05).map(m => `<span class="m-${m[2]}" style="flex-grow:${m[1].toFixed(3)}"></span>`).join('')}</div>
+      <ul class="mixlegend">${mix.map(m => `<li><i class="m-${m[2]}"></i><span>${m[0]}</span><b>${fmt(m[1])} kWh</b><em>${pct(m[1] / R.daily)}</em></li>`).join('')}</ul>
+    </div>
+    <dl class="money">
+      <div><dt>Solar offset</dt><dd>${pct(en.offset)}</dd></div>
+      <div><dt>Monthly savings</dt><dd>${peso(money.monthlySav, 0)}</dd></div>
+      <div><dt>Contract price</dt><dd>${peso(money.total, 0)}</dd></div>
+      <div><dt>Payback</dt><dd>${fin.payback === null ? '25+ yrs' : trim(fin.payback, 1) + ' yrs'}</dd></div>
+    </dl>
+    ${R.flags.length ? `<ul class="flags">${R.flags.map(f => `<li class="${f.level}"><span>${esc(f.text)}</span></li>`).join('')}</ul>` : ''}`;
+  $('#mbar-sum').innerHTML = `<b>${trim(pv.kwp, 2)} kWp${R.hybrid ? ` · ${bat.kwh} kWh` : ''}</b><br>${pct(en.offset)} offset · ${peso(money.total, 0)}`;
+}
+function renderHints() {
+  $('#rate-sum').textContent = `${peso(R.rate)} / kWh`;
+  $('#hint-kwh').textContent = R.monthlyBill > 0 ? `≈ ${peso(R.monthlyBill, 0)} per month at ${peso(R.rate)}/kWh` : '';
+  $('#hint-bill').textContent = R.monthlyKwh > 0 ? `≈ ${fmt(R.monthlyKwh)} kWh per month at ${peso(R.rate)}/kWh` : '';
+  $('#hint-inv').textContent = R.inv ? `${S.invQty === 'auto' ? 'Auto picks' : 'Set to'} ${R.inv.qty} × ${R.inv.size} kW = ${trim(R.inv.acKw, 1)} kW AC` : '';
+  $('#hint-bat').textContent = R.bat && R.hybrid ? `Auto suggests ${R.batAuto} module${R.batAuto > 1 ? 's' : ''} (${R.batAuto * 16} kWh)` : '';
+}
+
+function render() {
+  R = compute(S);
+  document.querySelectorAll('[data-when]').forEach(el => {
+    const [k, v] = el.dataset.when.split(':');
+    el.hidden = String(S[k]) !== v;
+  });
+  for (const k in OUT) { const o = document.getElementById('o-' + k); if (o) o.textContent = OUT[k](S[k]); }
+  document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.preset === +S.dayShare)));
+  renderHints();
+  renderPlate();
+  renderErrors(validate());
+  const tag = $('#loaded-tag');
+  tag.hidden = String(S.clientName).trim() !== 'Leo Yap';
+  save();
+}
+
+/* ---------- quotation ---------- */
+function chartSVG(rows, payback) {
+  const W = 720, H = 250, m = {l:62, r:16, t:22, b:30};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = rows.map(r => r.cum);
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const raw = (hi - lo) / 6 || 1, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+  const t0 = Math.floor(lo / step) * step, t1 = Math.ceil(hi / step) * step;
+  const y = v => m.t + (t1 - v) / (t1 - t0) * ih;
+  const band = iw / rows.length, bw = Math.min(band * 0.62, 18);
+  const x = i => m.l + band * i + (band - bw) / 2;
+  let g = '';
+  for (let t = t0; t <= t1 + step / 2; t += step) {
+    const yy = y(t).toFixed(1);
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}" stroke="${Math.abs(t) < step / 2 ? 'var(--paper-ink-3)' : 'var(--paper-line)'}" stroke-width="1"/>`;
+    g += `<text x="${m.l - 8}" y="${yy}" dy="0.32em" text-anchor="end" font-size="11" fill="var(--paper-ink-3)">${pesoShort(Math.abs(t) < step / 2 ? 0 : t)}</text>`;
+  }
+  let bars = '', hits = '';
+  const y0 = y(0);
+  rows.forEach((r, i) => {
+    const xx = x(i), yv = y(r.cum), h = Math.abs(yv - y0);
+    const rr = Math.min(4, bw / 2, h);
+    let d;
+    if (r.cum >= 0) d = `M${xx},${y0} V${yv + rr} Q${xx},${yv} ${xx + rr},${yv} H${xx + bw - rr} Q${xx + bw},${yv} ${xx + bw},${yv + rr} V${y0} Z`;
+    else d = `M${xx},${y0} V${yv - rr} Q${xx},${yv} ${xx + rr},${yv} H${xx + bw - rr} Q${xx + bw},${yv} ${xx + bw},${yv - rr} V${y0} Z`;
+    if (h > 0.2) bars += `<path d="${d}" fill="${r.cum >= 0 ? 'var(--paper-pos)' : 'var(--paper-neg)'}"/>`;
+    hits += `<rect data-i="${i}" x="${(m.l + band * i).toFixed(1)}" y="${m.t}" width="${band.toFixed(1)}" height="${ih}" fill="transparent"/>`;
+    if (i % 5 === 0) bars += `<text x="${(xx + bw / 2).toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="11" fill="var(--paper-ink-3)">${i === 0 ? 'Today' : 'Yr ' + i}</text>`;
+  });
+  let ann = '';
+  const last = rows[rows.length - 1];
+  ann += `<text x="${(x(rows.length - 1) + bw).toFixed(1)}" y="${(last.cum >= 0 ? y(last.cum) - 8 : y(last.cum) + 16).toFixed(1)}" text-anchor="end" font-size="12" font-weight="700" fill="var(--paper-ink)">${pesoShort(last.cum)}</text>`;
+  if (payback !== null) {
+    const px = m.l + band * payback + band / 2;
+    const right = px > W * 0.7;
+    ann += `<line x1="${px.toFixed(1)}" x2="${px.toFixed(1)}" y1="${y0.toFixed(1)}" y2="${(y0 + 24).toFixed(1)}" stroke="var(--paper-ink)" stroke-width="1"/>`;
+    ann += `<text x="${(right ? px - 5 : px + 5).toFixed(1)}" y="${(y0 + 20).toFixed(1)}" text-anchor="${right ? 'end' : 'start'}" font-size="11.5" font-weight="600" fill="var(--paper-ink)">Payback ≈ ${trim(payback, 1)} yrs</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative net position by year, from ${pesoShort(rows[0].cum)} today to ${pesoShort(last.cum)} after 25 years">${g}${bars}${ann}<g class="hits">${hits}</g></svg>`;
+}
+
+function renderQuote() {
+  const {inv, pv, bat, en, money, fin} = R;
+  const qd = parseDate(S.quoteDate);
+  const until = new Date(qd); until.setDate(until.getDate() + (+S.validity || 30));
+  const util = UTIL[S.utility] || UTIL.other;
+  const brand = S.invBrand && S.invBrand.trim() ? esc(S.invBrand.trim()) + ' ' : '';
+  const title = R.hybrid ? `${trim(pv.kwp, 2)} kWp Hybrid Solar PV with ${bat.kwh} kWh Battery Storage` : `${trim(pv.kwp, 2)} kWp Grid-Tied Solar PV System`;
+  const vatNote = S.vatMode === 'incl' ? 'Prices include 12% VAT.' : S.vatMode === 'add' ? '12% VAT added on top.' : 'No VAT applied.';
+  const pay = PAY[S.payTerms] || PAY['50-40-10'];
+  const contact = [S.clientPhone, S.clientEmail].filter(Boolean).map(esc).join(' · ');
+  const monLink = String(S.monitorUrl || '').trim();
+  const safeLink = /^https?:\/\//i.test(monLink) ? monLink : '';
+  const expRows = [];
+  if (R.hybrid) for (let n = bat.qty + 1; n <= MAX_MODULES; n++) expRows.push({n, kwh:n * 16, add:(n - bat.qty) * (num(S.pBat) || 0)});
+
+  $('#paper').innerHTML = `
+  <header class="lh">
+    <div>
+      <div class="co-name ${S.company ? '' : 'placeholder'}">${esc(S.company || 'Your Company Name')}</div>
+      ${S.companyContact ? `<div class="co-line">${esc(S.companyContact)}</div>` : ''}
+    </div>
+    <div>
+      <div class="doc-kind">Quotation</div>
+      <dl class="doc-meta">
+        <dt>No.</dt><dd class="mono">${esc(S.quoteNo || '—')}</dd>
+        <dt>Date</dt><dd>${fmtDate(qd)}</dd>
+        <dt>Valid until</dt><dd>${fmtDate(until)}</dd>
+      </dl>
+    </div>
+  </header>
+  <div class="cellband" aria-hidden="true"></div>
+
+  <div class="parties">
+    <div><h4>Prepared for</h4><p><b>${esc(S.clientName)}</b><br>${esc(S.siteAddress)}${contact ? `<br>${contact}` : ''}</p></div>
+    <div><h4>Project</h4><p><b>${esc(title)}</b><br>${PROPERTY[S.propertyType] || ''} · ${esc(util.name)} · ${S.phase === 'three' ? 'Three' : 'Single'}-phase service</p></div>
+  </div>
+
+  <section>
+    <h3>System at a glance</h3>
+    <div class="glance">
+      <div><div class="k">Solar array</div><div class="v">${trim(pv.kwp, 2)}<small>kWp</small></div><div class="s">${pv.panels} × ${pv.W} W panels</div></div>
+      <div><div class="k">Inverter output</div><div class="v">${trim(inv.acKw, 1)}<small>kW</small></div><div class="s">${inv.qty} × ${inv.size} kW${inv.qty > 1 ? ' in parallel' : ''}</div></div>
+      ${R.hybrid
+        ? `<div><div class="k">Battery storage</div><div class="v">${bat.kwh}<small>kWh</small></div><div class="s">${bat.qty} × 16 kWh LiFePO4</div></div>`
+        : `<div><div class="k">Generation</div><div class="v">${fmt(en.pvMonthly)}<small>kWh</small></div><div class="s">estimated per month</div></div>`}
+      <div><div class="k">Solar offset</div><div class="v">${pct(en.offset)}</div><div class="s">of ${fmt(R.monthlyKwh)} kWh/month</div></div>
+    </div>
+    <p class="lede">This proposal covers the supply and installation of a <b>${trim(pv.kwp, 2)} kWp</b> solar array${inv.qty > 1 ? ` on <b>${inv.qty} × ${inv.size} kW ${brand}${R.hybrid ? 'hybrid' : 'grid-tie'} inverters in parallel</b>` : ` on a <b>${inv.size} kW ${brand}${R.hybrid ? 'hybrid' : 'grid-tie'} inverter</b>`}${R.hybrid ? ` with <b>${bat.kwh} kWh</b> of modular LiFePO4 storage` : ''}. At ${fmt(R.monthlyKwh)} kWh of monthly use, the system is estimated to supply <b>${pct(en.offset)}</b> of your electricity and save about <b>${peso(money.monthlySav, 0)} a month</b>.</p>
+  </section>
+
+  <section>
+    <h3>Scope of supply &amp; pricing</h3>
+    <div class="tscroll">
+      <table class="qt">
+        <thead><tr><th>#</th><th>Item</th><th class="n">Qty</th><th class="n">Unit price</th><th class="n">Amount</th></tr></thead>
+        <tbody>
+          ${money.lines.map((l, i) => `<tr>
+            <td class="idx">${i + 1}</td>
+            <td><b>${esc(l.item)}</b><small>${esc(l.desc)}</small></td>
+            <td class="n">${l.unit === 'kWp' ? trim(l.qty, 3) : fmt(l.qty)} ${l.unit}</td>
+            <td class="n">${l.included ? '<span class="incl">Included</span>' : peso(l.price)}</td>
+            <td class="n">${l.included ? '<span class="incl">Included</span>' : peso(l.amount)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <dl class="totals">
+      <div><dt>Subtotal</dt><dd>${peso(money.subtotal)}</dd></div>
+      ${money.discountAmt > 0 ? `<div><dt>Discount (${trim(money.discountPct * 100, 1)}%)</dt><dd>${peso(-money.discountAmt)}</dd></div>` : ''}
+      ${S.vatMode === 'add' ? `<div><dt>VAT 12%</dt><dd>${peso(money.vat)}</dd></div>` : ''}
+      <div class="grand"><dt>Total contract price</dt><dd>${peso(money.total)}</dd></div>
+      <div class="note">${vatNote}${S.vatMode === 'incl' ? ` VAT portion ${peso(money.vat)}.` : ''} ${peso(money.perWp)} per Wp.</div>
+    </dl>
+  </section>
+
+  <div class="two two-wrap">
+    <section>
+      <h3>Design basis</h3>
+      <dl class="kv">
+        <div><dt>Monthly consumption</dt><dd>${fmt(R.monthlyKwh)} kWh</dd></div>
+        <div><dt>Average daily use</dt><dd>${trim(R.daily, 1)} kWh</dd></div>
+        <div><dt>Current rate</dt><dd>${peso(R.rate)}/kWh</dd></div>
+        <div><dt>Peak demand</dt><dd>${trim(R.peak, 1)} kW</dd></div>
+        <div><dt>Load profile</dt><dd>${fmt(R.dayShare * 100)}% day · ${fmt(100 - R.dayShare * 100)}% night</dd></div>
+        <div><dt>Peak sun hours (site)</dt><dd>${trim(pv.psh, 1)} h/day</dd></div>
+        <div><dt>Performance ratio</dt><dd>${fmt(pv.prf * 100)}%</dd></div>
+        <div><dt>DC/AC ratio</dt><dd>${trim(pv.ratio, 2)}×</dd></div>
+        <div><dt>Panels per inverter</dt><dd>${trim(pv.perInv, 1)}</dd></div>
+        <div><dt>Estimated generation</dt><dd>${fmt(en.pvMonthly)} kWh/mo</dd></div>
+        <div><dt>Roof area required</dt><dd>≈ ${fmt(pv.areaNeed)} m²</dd></div>
+        ${S.netMeter ? `<div><dt>Exported to grid</dt><dd>${fmt(en.exported * DAYS)} kWh/mo</dd></div>` : ''}
+      </dl>
+    </section>
+    <section>
+      <h3>Backup &amp; resiliency</h3>
+      ${R.hybrid ? `
+      <div class="callout"><div class="big">&lt;10 ms</div><p><b>Uninterrupted switchover.</b> When the grid drops, the inverters transfer to battery in under 10 milliseconds. Air-cons, lights and electronics stay on.</p></div>
+      <dl class="kv">
+        <div><dt>Emergency reserve</dt><dd>${fmt(bat.reserve * 100)}% · ${trim(bat.reserveKwh, 1)} kWh</dd></div>
+        ${bat.hoursReserve !== null ? `<div><dt>Reserve runtime at ${trim(bat.ess, 1)} kW</dt><dd>≈ ${trim(bat.hoursReserve, 1)} h</dd></div>
+        <div><dt>Full-battery runtime at ${trim(bat.ess, 1)} kW</dt><dd>up to ${trim(bat.hoursFull, 1)} h</dd></div>` : ''}
+        <div><dt>Daily cycling capacity</dt><dd>${trim(bat.cycleKwh, 1)} kWh</dd></div>
+        <div><dt>Night load from battery</dt><dd>${pct(en.discharged / R.nightLoad)}</dd></div>
+        <div><dt>Inverter configuration</dt><dd>${inv.qty > 1 ? `${inv.qty} units in parallel` : 'Single unit'}</dd></div>
+      </dl>
+      <p class="lede" style="margin-top:12px;font-size:13px">${inv.qty > 1 ? 'Parallel inverters share the starting surge of several air-cons, so simultaneous start-ups do not trip the system. ' : ''}The reserve is held back from daily use, so backup power is always available in a brownout, even after a cloudy day.</p>`
+      : `<div class="callout"><div class="big">Grid-tied</div><p>The system feeds your loads and the grid while utility power is present. For line-worker safety it shuts down during outages (anti-islanding). Batteries can be added later with a hybrid inverter upgrade.</p></div>`}
+    </section>
+  </div>
+
+  <section>
+    <h3>Financial outlook</h3>
+    <div class="fin">
+      <div><div class="k">Current monthly bill</div><div class="v">${peso(R.monthlyBill, 0)}</div><div class="s">${fmt(R.monthlyKwh)} kWh at ${peso(R.rate)}</div></div>
+      <div><div class="k">Estimated new bill</div><div class="v">${peso(money.newBill, 0)}</div><div class="s">${fmt(en.gridImport * DAYS)} kWh from the grid${S.netMeter && en.exported > 0.05 ? ', less export credit' : ''}</div></div>
+      <div class="hl"><div class="k">Monthly savings</div><div class="v">${peso(money.monthlySav, 0)}</div><div class="s">${peso(fin.y1, 0)} in year 1</div></div>
+      <div><div class="k">Simple payback</div><div class="v">${years(fin.payback)}</div><div class="s">with ${trim(fin.escR * 100, 1)}%/yr rate increases</div></div>
+      <div><div class="k">25-year net savings</div><div class="v">${pesoShort(fin.cum25)}</div><div class="s">ROI ${pct(fin.roi)}${fin.irr !== null ? ` · IRR ${pct(fin.irr, 1)}` : ''}</div></div>
+      <div><div class="k">CO₂ avoided</div><div class="v">${trim(fin.co2, 1)} t/yr</div><div class="s">${fmt(fin.co2 * 25)} t over 25 years</div></div>
+    </div>
+    <div class="chartwrap" id="cf">
+      <div class="chart-title">Cumulative net position</div>
+      <div class="chart-sub">Contract price today, then yearly savings less ${peso(fin.om, 0)}/yr maintenance, with ${trim(fin.degR * 100, 2)}%/yr panel degradation</div>
+      ${chartSVG(fin.rows, fin.payback)}
+      <div class="cf-tip" id="cf-tip" hidden></div>
+    </div>
+    <details>
+      <summary>Year-by-year cash flow</summary>
+      <div class="tscroll">
+        <table class="qt compact">
+          <thead><tr><th>Year</th><th class="n">Savings</th><th class="n">Maintenance</th><th class="n">Net</th><th class="n">Cumulative</th></tr></thead>
+          <tbody>${fin.rows.map(r => `<tr><td>${r.y === 0 ? 'Today' : r.y}</td><td class="n">${r.y ? peso(r.sav, 0) : '—'}</td><td class="n">${r.y ? peso(-r.om, 0) : '—'}</td><td class="n">${peso(r.net, 0)}</td><td class="n">${peso(r.cum, 0)}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <div class="two two-wrap">
+    ${R.hybrid ? `<section>
+      <h3>Battery expansion path</h3>
+      <p style="font-size:13px;color:var(--paper-ink-2);margin-bottom:10px">The modular stack grows from ${bat.qty} to ${MAX_MODULES} modules (${MAX_MODULES * 16} kWh) without replacing equipment. Each added 16 kWh module is <b style="color:var(--paper-ink)">${peso(num(S.pBat) || 0, 0)}</b>.</p>
+      ${expRows.length ? `<div class="tscroll"><table class="qt compact" style="min-width:0">
+        <thead><tr><th>Modules</th><th class="n">Storage</th><th class="n">Added cost</th></tr></thead>
+        <tbody>${expRows.map(r => `<tr><td>${r.n}</td><td class="n">${r.kwh} kWh</td><td class="n">${peso(r.add, 0)}</td></tr>`).join('')}</tbody>
+      </table></div>` : `<p style="font-size:13px;color:var(--paper-ink-2)">The stack is already at the 10-module maximum.</p>`}
+    </section>` : ''}
+    <section>
+      <h3>Warranty &amp; specifications</h3>
+      <ul class="wlist">
+        <li><span class="wtag">5 YR</span><div><b>Inverters</b><small>Replacement warranty. A faulty unit is swapped, not repaired.</small></div></li>
+        <li><span class="wtag">25 YR</span><div><b>Solar panels</b><small>Linear performance warranty on power output.</small></div></li>
+        ${R.hybrid ? `<li><span class="wtag">8,000</span><div><b>Batteries</b><small>Rated for 8,000 cycles, about ${trim(bat.years, 0)} years at one full cycle a day.</small></div></li>` : ''}
+        <li><span class="wtag">${S.workmanship} YR</span><div><b>Workmanship</b><small>Installation, wiring and mounting by our team.</small></div></li>
+      </ul>
+      <span class="tier">Tier-1 equipment</span>
+    </section>
+  </div>
+
+  <section>
+    <h3>Remote monitoring</h3>
+    <div class="mon">
+      <div><div class="k">Solar generation</div><div class="v">— kW</div><div class="s">Live after commissioning</div></div>
+      ${R.hybrid ? `<div><div class="k">Battery state of charge</div><div class="v">— %</div><div class="s">Live after commissioning</div></div>` : ''}
+      <div><div class="k">Grid import / export</div><div class="v">— kW</div><div class="s">Live after commissioning</div></div>
+    </div>
+    <p class="mon-note">Every inverter ships with a datalogger. At handover we set up the ${esc(S.invBrand || 'inverter')} monitoring app on your phone so you can follow generation${R.hybrid ? ', battery charge' : ''} and grid use in real time${safeLink ? `: <a href="${esc(safeLink)}" target="_blank" rel="noopener">${esc(safeLink.replace(/^https?:\/\//i, '').replace(/\/$/, ''))}</a>` : ''}.</p>
+  </section>
+
+  <section>
+    <h3>Terms &amp; conditions</h3>
+    <div class="tscroll" style="margin-bottom:18px">
+      <table class="qt compact" style="min-width:420px">
+        <thead><tr><th>Payment milestone</th><th class="n">Share</th><th class="n">Amount</th></tr></thead>
+        <tbody>${pay.map(([t, p]) => `<tr><td>${t}</td><td class="n">${p}%</td><td class="n">${peso(money.total * p / 100)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="terms">
+      <div>
+        <p><b>Inclusions</b></p>
+        <ul>
+          <li>Supply of all equipment listed above</li>
+          <li>Mounting, wiring and installation</li>
+          <li>Testing, commissioning and client training</li>
+          ${S.netMeter ? `<li>Processing of the ${esc(util.name)} net-metering application</li>` : ''}
+          <li>Monitoring app setup</li>
+        </ul>
+      </div>
+      <div>
+        <p><b>Exclusions</b></p>
+        <ul>
+          <li>Roof repairs or structural reinforcement</li>
+          <li>Utility fees, deposits and meter upgrades</li>
+          <li>Civil works beyond standard conduit runs</li>
+          <li>Items not listed in the scope of supply</li>
+        </ul>
+      </div>
+      <div>
+        <p><b>Validity.</b> This quotation is valid until ${fmtDate(until)}.</p>
+        <p><b>Lead time.</b> ${esc(S.leadTime || 'To be confirmed')}.</p>
+      </div>
+      <div>
+        <p><b>Prices.</b> In Philippine pesos. ${vatNote}</p>
+        <p><b>Estimates.</b> Generation and savings are estimates. Actual results vary with weather, shading and usage.</p>
+      </div>
+    </div>
+    ${S.notes ? `<div class="notes">${esc(S.notes)}</div>` : ''}
+  </section>
+
+  <div class="sign">
+    <div><div class="lbl4">Prepared by</div><div class="line">${esc(S.preparedBy || ' ')}<small>${esc(S.company || 'Your Company Name')}</small></div></div>
+    <div><div class="lbl4">Conforme</div><div class="line">${esc(S.clientName)}<small>Signature over printed name · Date</small></div></div>
+  </div>
+
+  <footer class="qfoot">Quotation ${esc(S.quoteNo)} · Sizing assumes ${trim(pv.psh, 1)} peak sun hours, ${fmt(pv.prf * 100)}% performance ratio and ${peso(R.rate)}/kWh${S.netMeter ? `, with surplus credited at ${peso(en.exportRate)}/kWh under net metering` : ''}. CO₂ uses ${CO2_KG_PER_KWH} kg per kWh of grid power displaced.</footer>`;
+
+  // chart hover
+  const wrap = $('#cf'), tip = $('#cf-tip'), svg = wrap.querySelector('svg');
+  const showTip = e => {
+    const t = e.target.closest('rect[data-i]'); if (!t) return;
+    const r = fin.rows[+t.dataset.i];
+    const box = svg.getBoundingClientRect(), wb = wrap.getBoundingClientRect();
+    const tb = t.getBoundingClientRect();
+    tip.innerHTML = `<b>${r.y === 0 ? 'Today' : 'Year ' + r.y}</b>${r.y ? `Net savings ${peso(r.net, 0)}<br>` : 'Contract price<br>'}Cumulative ${peso(r.cum, 0)}`;
+    tip.hidden = false;
+    const cx = clamp(tb.left + tb.width / 2 - wb.left, 70, wb.width - 70);
+    tip.style.left = cx + 'px';
+    tip.style.top = (box.top - wb.top + 6) + 'px';
+  };
+  svg.addEventListener('pointermove', showTip);
+  svg.addEventListener('pointerleave', () => { tip.hidden = true; });
+}
+
+function quoteText() {
+  const {inv, pv, bat, en, money, fin} = R;
+  const qd = parseDate(S.quoteDate);
+  const until = new Date(qd); until.setDate(until.getDate() + (+S.validity || 30));
+  const L = [];
+  L.push((S.company || 'Your Company Name').toUpperCase());
+  if (S.companyContact) L.push(S.companyContact);
+  L.push('', `QUOTATION ${S.quoteNo}`, `Date: ${fmtDate(qd)}  |  Valid until: ${fmtDate(until)}`, '');
+  L.push(`Prepared for: ${S.clientName}`, S.siteAddress);
+  const contact = [S.clientPhone, S.clientEmail].filter(Boolean).join(' · ');
+  if (contact) L.push(contact);
+  L.push('', R.hybrid ? `PROJECT: ${trim(pv.kwp, 2)} kWp Hybrid Solar PV with ${bat.kwh} kWh Battery Storage` : `PROJECT: ${trim(pv.kwp, 2)} kWp Grid-Tied Solar PV System`);
+  L.push(`- Solar array: ${pv.panels} x ${pv.W} W (${trim(pv.kwp, 2)} kWp)`);
+  L.push(`- Inverters: ${inv.qty} x ${inv.size} kW${inv.qty > 1 ? ' in parallel' : ''} (${trim(inv.acKw, 1)} kW AC)`);
+  if (R.hybrid) L.push(`- Battery: ${bat.qty} x 16 kWh LiFePO4 (${bat.kwh} kWh), ${trim(bat.reserveKwh, 1)} kWh emergency reserve, <10 ms switchover`);
+  L.push(`- Solar offset: ${pct(en.offset)} of ${fmt(R.monthlyKwh)} kWh/month`, '', 'SCOPE OF SUPPLY');
+  money.lines.forEach((l, i) => L.push(`${i + 1}. ${l.item} | ${l.unit === 'kWp' ? trim(l.qty, 3) : fmt(l.qty)} ${l.unit} | ${l.included ? 'Included' : `${peso(l.price)} | ${peso(l.amount)}`}`));
+  L.push(`Subtotal: ${peso(money.subtotal)}`);
+  if (money.discountAmt > 0) L.push(`Discount (${trim(money.discountPct * 100, 1)}%): ${peso(-money.discountAmt)}`);
+  if (S.vatMode === 'add') L.push(`VAT 12%: ${peso(money.vat)}`);
+  L.push(`TOTAL CONTRACT PRICE: ${peso(money.total)} (${S.vatMode === 'incl' ? 'VAT-inclusive' : S.vatMode === 'add' ? 'VAT included above' : 'no VAT'})`, '');
+  L.push('FINANCIAL OUTLOOK', `Current bill: ${peso(R.monthlyBill, 0)}/month`, `Estimated new bill: ${peso(money.newBill, 0)}/month`, `Monthly savings: ${peso(money.monthlySav, 0)}`, `Payback: ${years(fin.payback)}`, `25-year net savings: ${peso(fin.cum25, 0)}`, '');
+  L.push('WARRANTY', '- Inverters: 5-year replacement warranty (swap, no repair)', '- Solar panels: 25-year linear performance warranty');
+  if (R.hybrid) L.push('- Batteries: rated for 8,000 cycles');
+  L.push(`- Workmanship: ${S.workmanship} year(s)`, '');
+  if (R.hybrid && bat.qty < MAX_MODULES) L.push(`EXPANSION: add 16 kWh modules at ${peso(num(S.pBat) || 0, 0)} each, up to ${MAX_MODULES} modules (160 kWh).`, '');
+  L.push('PAYMENT TERMS');
+  (PAY[S.payTerms] || []).forEach(([t, p]) => L.push(`- ${p}% ${t}: ${peso(money.total * p / 100)}`));
+  L.push(`Lead time: ${S.leadTime || 'To be confirmed'}`);
+  if (S.notes) L.push('', 'NOTES', S.notes);
+  if (S.preparedBy) L.push('', `Prepared by: ${S.preparedBy}`);
+  return L.join('\n');
+}
+
+/* ---------- routing ---------- */
+function setView(v) {
+  $('#view-inputs').hidden = v !== 'inputs';
+  $('#view-quote').hidden = v !== 'quote';
+  $('#mbar').hidden = v !== 'inputs';
+  document.body.classList.toggle('on-inputs', v === 'inputs');
+  $('#step-inputs').toggleAttribute('aria-current', false);
+  $('#step-quote').toggleAttribute('aria-current', false);
+  $(v === 'inputs' ? '#step-inputs' : '#step-quote').setAttribute('aria-current', 'step');
+}
+function focusFirstError(errs) {
+  const el = form.elements[errs[0][0]];
+  if (el && el.focus) { el.focus({preventScroll:true}); el.scrollIntoView({block:'center', behavior:'smooth'}); }
+}
+function route() {
+  if (location.hash === '#quote') {
+    const errs = validate();
+    if (errs.length) {
+      showErrors = true; renderErrors(errs); setView('inputs');
+      location.hash = 'inputs';
+      focusFirstError(errs);
+      return;
+    }
+    renderQuote(); setView('quote'); window.scrollTo(0, 0);
+    return;
+  }
+  setView('inputs');
+}
+function generate() {
+  const errs = validate();
+  if (errs.length) { showErrors = true; renderErrors(errs); focusFirstError(errs); return; }
+  if (location.hash === '#quote') route(); else location.hash = 'quote';
+}
+
+/* ---------- events ---------- */
+form.addEventListener('submit', e => e.preventDefault());
+form.addEventListener('input', onChange);
+form.addEventListener('change', onChange);
+function onChange(e) {
+  const n = e.target.name;
+  if (n === 'panelW') form.elements.pPanel.value = PANELS[+e.target.value].price;
+  if (n === 'invSize' || n === 'systemType') form.elements.pInv.value = invPrice(+form.elements.invSize.value, form.elements.systemType.value);
+  if (n === 'utility' && !form.elements.itemize.checked) form.elements.rate.value = UTIL[e.target.value].rate;
+  if (n === 'itemize' && !e.target.checked) {
+    const sum = RATE_ITEMS.reduce((a, k) => a + (num(form.elements[k].value) || 0), 0);
+    if (sum > 0) form.elements.rate.value = sum.toFixed(2);
+  }
+  S = readForm();
+  render();
+}
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  form.elements.dayShare.value = b.dataset.preset;
+  S = readForm(); render();
+}));
+$('#gen').addEventListener('click', generate);
+$('#gen2').addEventListener('click', generate);
+$('#btn-sample').addEventListener('click', () => {
+  const keep = {company:S.company, companyContact:S.companyContact, preparedBy:S.preparedBy};
+  writeForm({...SAMPLE, ...keep, quoteNo:defaultQuoteNo(), quoteDate:isoToday});
+  showErrors = false; S = readForm(); render();
+});
+$('#btn-blank').addEventListener('click', () => {
+  writeForm({...S, clientName:'', siteAddress:'', clientPhone:'', clientEmail:'', monthlyKwh:'', monthlyBill:'', peakKw:'', essentialKw:'', roofArea:'', notes:'', quoteNo:defaultQuoteNo(), quoteDate:isoToday});
+  showErrors = false; S = readForm(); render();
+  form.elements.clientName.focus();
+});
+window.addEventListener('hashchange', route);
+
+let toastT;
+const toast = t => { const el = $('#toast'); el.textContent = t; clearTimeout(toastT); toastT = setTimeout(() => el.textContent = '', 3500); };
+$('#copy').addEventListener('click', () => {
+  const text = quoteText();
+  const fb = $('#copy-fallback');
+  const fallback = () => { fb.value = text; fb.hidden = false; fb.focus(); fb.select(); toast('Text selected. Press Ctrl+C or ⌘C to copy.'); };
+  try {
+    navigator.clipboard.writeText(text).then(() => { fb.hidden = true; toast('Quotation copied. Paste it into an email or chat.'); }, fallback);
+  } catch (err) { fallback(); }
+});
+
+/* ---------- boot ---------- */
+function start(data) {
+  const saved = (data && data.state) || loadDraft();
+  writeForm({...SAMPLE, ...(saved || {})});
+  S = readForm();
+  render();
+  route();
+}
+window.claude?.hot?.snapshot?.(() => ({state: readForm(), hash: location.hash}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
